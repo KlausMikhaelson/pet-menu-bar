@@ -1,8 +1,35 @@
-const { app, Tray, Menu, nativeImage } = require("electron");
-const path = require("path");
+import { app, Tray, Menu, nativeImage, NativeImage } from "electron";
+import * as path from "path";
 
-let GlobalKeyboardListener;
-let keyListener;
+interface IGlobalKeyEvent {
+  state: "DOWN" | "UP";
+  name?: string;
+  rawKey?: any;
+}
+
+interface IGlobalKeyListener {
+  (event: IGlobalKeyEvent): void;
+}
+
+interface GlobalKeyboardListener {
+  addListener(listener: IGlobalKeyListener): Promise<void>;
+  kill(): void;
+}
+
+interface DogSprites {
+  sitting: NativeImage | string;
+  running1: NativeImage | string;
+  standing: NativeImage | string;
+}
+
+type DogState = "sitting" | "running";
+type SpriteType = "sitting" | "running1" | "standing";
+
+let GlobalKeyboardListener:
+  | typeof import("node-global-key-listener").GlobalKeyboardListener
+  | undefined;
+let keyListener: GlobalKeyboardListener | undefined;
+
 try {
   const { GlobalKeyboardListener: GKL } = require("node-global-key-listener");
   GlobalKeyboardListener = GKL;
@@ -12,22 +39,22 @@ try {
   );
 }
 
-let tray;
-let isTyping = false;
-let typingTimeout;
-let animationInterval;
+let tray: Tray;
+let isTyping: boolean = false;
+let typingTimeout: NodeJS.Timeout | undefined;
+let animationInterval: NodeJS.Timeout | undefined;
 
-const dogSprites = {
+const dogSprites: DogSprites = {
   sitting: createDogSprite("sitting"),
   running1: createDogSprite("running1"),
   standing: createDogSprite("standing"),
 };
 
-function createDogSprite(type) {
-  const spritePaths = {
-    sitting: path.join(__dirname, "assets", "dog-sitting.png"),
-    running1: path.join(__dirname, "assets", "dog-running.png"),
-    standing: path.join(__dirname, "assets", "dog-standing.png"),
+function createDogSprite(type: SpriteType): NativeImage | string {
+  const spritePaths: Record<SpriteType, string> = {
+    sitting: path.join(__dirname, "..", "assets", "dog-sitting.png"),
+    running1: path.join(__dirname, "..", "assets", "dog-running.png"),
+    standing: path.join(__dirname, "..", "assets", "dog-standing.png"),
   };
 
   try {
@@ -35,7 +62,7 @@ function createDogSprite(type) {
       .createFromPath(spritePaths[type])
       .resize({ width: 24, height: 24 });
   } catch (error) {
-    const emojiMap = {
+    const emojiMap: Record<SpriteType, string> = {
       sitting: "🐕",
       running1: "🏃‍♂️🐕",
       standing: "🐕‍🦺",
@@ -44,7 +71,7 @@ function createDogSprite(type) {
   }
 }
 
-function createTray() {
+function createTray(): void {
   const initialIcon = dogSprites.sitting;
 
   if (typeof initialIcon === "string") {
@@ -78,13 +105,13 @@ function createTray() {
   tray.setContextMenu(contextMenu);
 }
 
-function showGreeting() {
+function showGreeting(): void {
   const originalState = getCurrentDogState();
 
   if (typeof dogSprites.sitting === "string") {
     tray.setTitle("🐕 Hi!");
   } else {
-    tray.setImage(dogSprites.sitting);
+    tray.setImage(dogSprites.sitting as NativeImage);
     tray.setTitle("Hi!");
   }
 
@@ -96,13 +123,13 @@ function showGreeting() {
   }, 2000);
 }
 
-function petDog() {
+function petDog(): void {
   const originalState = getCurrentDogState();
 
   if (typeof dogSprites.sitting === "string") {
     tray.setTitle("🐕 ❤️");
   } else {
-    tray.setImage(dogSprites.sitting);
+    tray.setImage(dogSprites.sitting as NativeImage);
     tray.setTitle("❤️");
   }
 
@@ -114,11 +141,11 @@ function petDog() {
   }, 2000);
 }
 
-function getCurrentDogState() {
+function getCurrentDogState(): DogState {
   return isTyping ? "running" : "sitting";
 }
 
-function restoreOriginalState(state) {
+function restoreOriginalState(state: DogState): void {
   if (state === "running") {
     startRunningAnimation();
   } else {
@@ -126,7 +153,7 @@ function restoreOriginalState(state) {
   }
 }
 
-function startRunningAnimation() {
+function startRunningAnimation(): void {
   if (animationInterval) return;
 
   let frame = 0;
@@ -136,7 +163,7 @@ function startRunningAnimation() {
     if (typeof sprite === "string") {
       tray.setTitle(sprite);
     } else {
-      tray.setImage(sprite);
+      tray.setImage(sprite as NativeImage);
       tray.setTitle("");
     }
 
@@ -144,52 +171,55 @@ function startRunningAnimation() {
   }, 500);
 }
 
-function stopRunningAnimation() {
+function stopRunningAnimation(): void {
   if (animationInterval) {
     clearInterval(animationInterval);
-    animationInterval = null;
+    animationInterval = undefined;
   }
 
   if (typeof dogSprites.sitting === "string") {
     tray.setTitle(dogSprites.sitting);
   } else {
-    tray.setImage(dogSprites.sitting);
+    tray.setImage(dogSprites.sitting as NativeImage);
     tray.setTitle("");
   }
 }
 
-function triggerTyping() {
+function triggerTyping(): void {
   isTyping = true;
   startRunningAnimation();
 
-  clearTimeout(typingTimeout);
+  if (typingTimeout) {
+    clearTimeout(typingTimeout);
+  }
+
   typingTimeout = setTimeout(() => {
     isTyping = false;
     stopRunningAnimation();
   }, 3000);
 }
 
-function setupTypingDetection() {
+function setupTypingDetection(): void {
   if (GlobalKeyboardListener) {
     keyListener = new GlobalKeyboardListener();
 
-    keyListener.addListener(function (e) {
+    keyListener.addListener(function (e: IGlobalKeyEvent) {
       if (e.state === "DOWN" && e.name) {
-        if (
-          ![
-            "LEFT CTRL",
-            "RIGHT CTRL",
-            "LEFT SHIFT",
-            "RIGHT SHIFT",
-            "LEFT ALT",
-            "RIGHT ALT",
-            "LEFT META",
-            "RIGHT META",
-            "CAPS LOCK",
-            "TAB",
-            "ESCAPE",
-          ].includes(e.name)
-        ) {
+        const excludedKeys = [
+          "LEFT CTRL",
+          "RIGHT CTRL",
+          "LEFT SHIFT",
+          "RIGHT SHIFT",
+          "LEFT ALT",
+          "RIGHT ALT",
+          "LEFT META",
+          "RIGHT META",
+          "CAPS LOCK",
+          "TAB",
+          "ESCAPE",
+        ];
+
+        if (!excludedKeys.includes(e.name)) {
           triggerTyping();
         }
       }
@@ -215,7 +245,9 @@ app.whenReady().then(() => {
   }
 });
 
-app.on("window-all-closed", () => {});
+app.on("window-all-closed", () => {
+  // Keep the app running even when all windows are closed
+});
 
 app.on("before-quit", () => {
   if (animationInterval) {

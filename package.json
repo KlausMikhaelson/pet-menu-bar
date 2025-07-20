@@ -2,13 +2,18 @@
   "name": "menu-bar-dog",
   "version": "1.0.0",
   "description": "A cute dog that sits on your menu bar",
-  "main": "main.js",
+  "main": "dist/main.js",
   "scripts": {
-    "start": "electron .",
-    "dev": "electron . --dev"
+    "build": "tsc",
+    "start": "npm run build && electron .",
+    "dev": "npm run build && electron . --dev",
+    "watch": "tsc --watch"
   },
   "devDependencies": {
-    "electron": "^28.0.0"
+    "electron": "^28.0.0",
+    "typescript": "^5.3.3",
+    "@types/node": "^20.10.5",
+    "ts-node": "^10.9.2"
   },
   "dependencies": {
     "node-global-key-listener": "^0.1.1"
