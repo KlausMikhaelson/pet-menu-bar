@@ -3,3 +3,7 @@ package-lock.json
 dist/
 *.tsbuildinfo
 .DS_Store
+
+# Google Calendar credentials and tokens
+credentials.json
+token.json
