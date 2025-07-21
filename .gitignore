@@ -37,7 +37,8 @@ pids
 # dotenv environment variables file
 .env
 
-# Token files
+# Google Calendar credentials and tokens (sensitive data)
+credentials.json
 token.json
 
 # macOS
