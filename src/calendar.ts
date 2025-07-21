@@ -2,7 +2,9 @@ import { google, calendar_v3 } from "googleapis";
 import { OAuth2Client } from "google-auth-library";
 import * as fs from "fs";
 import * as path from "path";
-import * as notifier from "node-notifier";
+
+// Use require for node-notifier as it has CommonJS exports
+const notifier = require("node-notifier");
 
 interface CalendarEvent {
   id: string;
@@ -168,35 +170,45 @@ export class CalendarService {
   private startEventChecking(): void {
     // Check for upcoming events every 5 minutes
     this.checkInterval = setInterval(async () => {
-      await this.checkForUpcomingEvents();
+      try {
+        await this.checkForUpcomingEvents();
+      } catch (error) {
+        console.error("Error in event checking interval:", error);
+      }
     }, 5 * 60 * 1000);
 
     // Initial check
-    this.checkForUpcomingEvents();
+    this.checkForUpcomingEvents().catch((error) => {
+      console.error("Error in initial event check:", error);
+    });
   }
 
   private async checkForUpcomingEvents(): Promise<void> {
-    const events = await this.getUpcomingEvents();
-    const now = new Date();
+    try {
+      const events = await this.getUpcomingEvents();
+      const now = new Date();
 
-    for (const event of events) {
-      const timeUntilEvent = event.start.getTime() - now.getTime();
-      const minutesUntil = Math.floor(timeUntilEvent / (1000 * 60));
+      for (const event of events) {
+        const timeUntilEvent = event.start.getTime() - now.getTime();
+        const minutesUntil = Math.floor(timeUntilEvent / (1000 * 60));
 
-      // Notify for events starting in 15 minutes or less (but not past events)
-      if (
-        minutesUntil <= 15 &&
-        minutesUntil > 0 &&
-        !this.notifiedEvents.has(event.id)
-      ) {
-        this.sendEventNotification(event, minutesUntil);
-        this.notifiedEvents.add(event.id);
+        // Notify for events starting in 15 minutes or less (but not past events)
+        if (
+          minutesUntil <= 15 &&
+          minutesUntil > 0 &&
+          !this.notifiedEvents.has(event.id)
+        ) {
+          this.sendEventNotification(event, minutesUntil);
+          this.notifiedEvents.add(event.id);
 
-        // Clean up old notifications after 1 hour
-        setTimeout(() => {
-          this.notifiedEvents.delete(event.id);
-        }, 60 * 60 * 1000);
+          // Clean up old notifications after 1 hour
+          setTimeout(() => {
+            this.notifiedEvents.delete(event.id);
+          }, 60 * 60 * 1000);
+        }
       }
+    } catch (error) {
+      console.error("Error checking for upcoming events:", error);
     }
   }
 
@@ -209,15 +221,20 @@ export class CalendarService {
       minutesUntil !== 1 ? "s" : ""
     }`;
 
-    notifier.notify({
-      title,
-      message,
-      sound: true,
-      wait: false,
-      timeout: 10,
-    });
-
-    console.log(`Notification sent: ${message}`);
+    try {
+      notifier.notify({
+        title,
+        message,
+        sound: true,
+        wait: false,
+        timeout: 10,
+      });
+      console.log(`Notification sent: ${message}`);
+    } catch (error) {
+      console.error("Failed to send desktop notification:", error);
+      // Fallback: just log to console
+      console.log(`🐕 REMINDER: ${message}`);
+    }
   }
 
   isAuthenticated(): boolean {
