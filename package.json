@@ -1,25 +1,93 @@
 {
   "name": "menu-bar-dog",
   "version": "1.0.0",
-  "description": "A cute dog that sits on your menu bar",
+  "description": "A cute dog that sits on your menu bar and reminds you of calendar events",
   "main": "dist/main.js",
+  "author": "Satyam Singh <satyamsingh5076@gmail.com>",
+  "homepage": "https://github.com/KlausMikhaelson/pet-menu-bar",
   "scripts": {
     "build": "tsc",
     "start": "npm run build && electron .",
     "dev": "npm run build && electron . --dev",
     "dev:watch": "concurrently \"tsc --watch\" \"nodemon --watch dist --exec 'electron .'\"",
-    "watch": "tsc --watch"
+    "watch": "tsc --watch",
+    "dist": "npm run build && electron-builder",
+    "dist:mac": "npm run build && electron-builder --mac",
+    "pack": "npm run build && electron-builder --dir",
+    "release": "bash scripts/prepare-release.sh"
+  },
+  "build": {
+    "appId": "com.menubardog.app",
+    "productName": "Menu Bar Dog",
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "dist/**/*",
+      "assets/**/*",
+      "node_modules/**/*",
+      "package.json"
+    ],
+    "mac": {
+      "category": "public.app-category.productivity",
+      "target": [
+        {
+          "target": "dmg",
+          "arch": [
+            "x64",
+            "arm64"
+          ]
+        }
+      ],
+      "darkModeSupport": true,
+      "hardenedRuntime": true,
+      "gatekeeperAssess": false,
+      "entitlements": "build/entitlements.plist",
+      "entitlementsInherit": "build/entitlements.plist"
+    },
+    "dmg": {
+      "title": "Menu Bar Dog",
+      "contents": [
+        {
+          "x": 410,
+          "y": 150,
+          "type": "link",
+          "path": "/Applications"
+        },
+        {
+          "x": 130,
+          "y": 150,
+          "type": "file"
+        }
+      ],
+      "window": {
+        "width": 540,
+        "height": 380
+      }
+    },
+    "extraResources": [
+      {
+        "from": "GOOGLE_CALENDAR_SETUP.md",
+        "to": "GOOGLE_CALENDAR_SETUP.md"
+      },
+      {
+        "from": "credentials.json",
+        "to": "credentials.json",
+        "filter": [
+          "credentials.json"
+        ]
+      }
+    ]
   },
   "devDependencies": {
     "@types/node": "^20.10.5",
     "electron": "^28.0.0",
+    "electron-builder": "^24.9.1",
     "ts-node": "^10.9.2",
     "typescript": "^5.3.3"
   },
   "dependencies": {
-    "@types/node-notifier": "^8.0.5",
     "googleapis": "^128.0.0",
-    "node-global-key-listener": "^0.1.1",
-    "node-notifier": "^10.0.1"
+    "node-global-key-listener": "^0.1.1"
   }
 }

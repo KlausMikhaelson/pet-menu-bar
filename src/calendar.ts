@@ -3,9 +3,6 @@ import { OAuth2Client } from "google-auth-library";
 import * as fs from "fs";
 import * as path from "path";
 
-// Use require for node-notifier as it has CommonJS exports
-const notifier = require("node-notifier");
-
 interface CalendarEvent {
   id: string;
   summary: string;
@@ -21,6 +18,8 @@ interface CalendarConfig {
   redirectUri: string;
 }
 
+type ReminderCallback = (event: CalendarEvent, minutesUntil: number) => void;
+
 export class CalendarService {
   private oAuth2Client: OAuth2Client | null = null;
   private calendar: calendar_v3.Calendar | null = null;
@@ -29,10 +28,15 @@ export class CalendarService {
   private credentialsPath: string;
   private checkInterval: NodeJS.Timeout | null = null;
   private notifiedEvents: Set<string> = new Set();
+  private reminderCallback: ReminderCallback | null = null;
 
   constructor() {
     this.tokenPath = path.join(__dirname, "..", "token.json");
     this.credentialsPath = path.join(__dirname, "..", "credentials.json");
+  }
+
+  setReminderCallback(callback: ReminderCallback): void {
+    this.reminderCallback = callback;
   }
 
   async initialize(): Promise<boolean> {
@@ -46,9 +50,13 @@ export class CalendarService {
       }
 
       // Load credentials
-      const credentials = JSON.parse(
-        fs.readFileSync(this.credentialsPath, "utf8")
-      );
+      let credentials;
+      try {
+        credentials = JSON.parse(fs.readFileSync(this.credentialsPath, "utf8"));
+      } catch (error) {
+        console.error("Error reading credentials.json:", error);
+        return false;
+      }
 
       if (!credentials.installed && !credentials.web) {
         console.log(
@@ -216,23 +224,19 @@ export class CalendarService {
     event: CalendarEvent,
     minutesUntil: number
   ): void {
-    const title = "🐕 Calendar Reminder";
     const message = `${event.summary} starts in ${minutesUntil} minute${
       minutesUntil !== 1 ? "s" : ""
     }`;
 
     try {
-      notifier.notify({
-        title,
-        message,
-        sound: true,
-        wait: false,
-        timeout: 10,
-      });
-      console.log(`Notification sent: ${message}`);
+      if (this.reminderCallback) {
+        this.reminderCallback(event, minutesUntil);
+        console.log(`Reminder triggered: ${message}`);
+      } else {
+        console.log(`🐕 REMINDER: ${message}`);
+      }
     } catch (error) {
-      console.error("Failed to send desktop notification:", error);
-      // Fallback: just log to console
+      console.error("Failed to trigger reminder:", error);
       console.log(`🐕 REMINDER: ${message}`);
     }
   }
@@ -259,5 +263,9 @@ export class CalendarService {
   async getNextEvent(): Promise<CalendarEvent | null> {
     const events = await this.getUpcomingEvents(1);
     return events.length > 0 ? events[0] : null;
+  }
+
+  hasCredentials(): boolean {
+    return fs.existsSync(this.credentialsPath);
   }
 }
