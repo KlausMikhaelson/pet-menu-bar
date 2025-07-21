@@ -1,9 +1,44 @@
+# Dependencies
 node_modules/
-package-lock.json
-dist/
-*.tsbuildinfo
-.DS_Store
 
-# Google Calendar credentials and tokens
-credentials.json
+# Build output
+dist/
+build/
+
+# Release files (these are too large for GitHub)
+release/
+
+# Electron build artifacts
+*.dmg
+*.app
+
+# Logs
+*.log
+npm-debug.log*
+
+# Runtime data
+pids
+*.pid
+*.seed
+*.pid.lock
+
+# Optional npm cache directory
+.npm
+
+# Optional eslint cache
+.eslintcache
+
+# Output of 'npm pack'
+*.tgz
+
+# Yarn Integrity file
+.yarn-integrity
+
+# dotenv environment variables file
+.env
+
+# Token files
 token.json
+
+# macOS
+.DS_Store
